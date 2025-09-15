@@ -84,7 +84,8 @@ export function tick(state: GameState): GameState {
 }
 
 function applyDifficulty(s: GameState): GameState {
-  const elapsedMin = Math.floor((Date.now() - s.startAt) / 60000);
-  const faster = Math.max(200, INITIAL_TICK_MS - elapsedMin * 100); // 1分ごとに100ms短縮、下限200ms
+  // 30秒ごとに 75ms 短縮、下限200ms
+  const elapsed30s = Math.floor((Date.now() - s.startAt) / 30000);
+  const faster = Math.max(200, INITIAL_TICK_MS - elapsed30s * 75);
   return s.tickMs === faster ? s : { ...s, tickMs: faster };
 }

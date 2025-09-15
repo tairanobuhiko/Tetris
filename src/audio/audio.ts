@@ -104,3 +104,25 @@ export async function playGameOver() {
   }
   await fxOver.replayAsync();
 }
+
+export async function stopFxOver() {
+  if (fxOver) {
+    try {
+      await fxOver.stopAsync();
+    } catch {}
+    try {
+      await fxOver.unloadAsync();
+    } catch {}
+    fxOver = null;
+  }
+}
+
+export async function stopAllSounds() {
+  await stopMusic();
+  if (fxLine) {
+    try { await fxLine.stopAsync(); } catch {}
+    try { await fxLine.unloadAsync(); } catch {}
+    fxLine = null;
+  }
+  await stopFxOver();
+}

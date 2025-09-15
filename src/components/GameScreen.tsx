@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Board as BoardComp } from '@/components/Board';
 import { HUD } from '@/components/HUD';
 import { COLORS } from '@/theme';
-import { playMusic, stopMusic, pauseMusic, resumeMusic, playGameOver, playLineClear } from '../audio/audio';
+import { playMusic, stopMusic, stopAllSounds, stopFxOver, playGameOver, playLineClear } from '../audio/audio';
 import { initGame, tick, tryMove, tryRotate } from '@/game/engine';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import { useInputLayer } from '@/hooks/useInput';
@@ -14,37 +14,43 @@ import { BOARD_COLS } from '@/game/constants';
 export const GameScreen: React.FC = () => {
   const [state, setState] = useState(() => initGame());
   const [paused, setPaused] = useState(false);
+  const [started, setStarted] = useState(false);
 
   // ゲームループ（1秒ごと）
   useGameLoop(
     useCallback(() => {
-      if (!paused) setState((s) => tick(s));
-    }, [paused]),
+      if (!paused && started) setState((s) => tick(s));
+    }, [paused, started]),
     state.tickMs,
   );
 
   const onLeft = useCallback(() => {
+    if (paused || state.isGameOver || !started) return;
     playMusic(true);
     setState((s) => tryMove(s, { row: 0, col: -1 }));
-  }, []);
+  }, [paused, started, state.isGameOver]);
   const onRight = useCallback(() => {
+    if (paused || state.isGameOver || !started) return;
     playMusic(true);
     setState((s) => tryMove(s, { row: 0, col: 1 }));
-  }, []);
+  }, [paused, started, state.isGameOver]);
   const onRotate = useCallback(() => {
+    if (paused || state.isGameOver || !started) return;
     playMusic(true);
     setState((s) => tryRotate(s));
-  }, []);
+  }, [paused, started, state.isGameOver]);
   const onSoftDrop = useCallback(
-    () =>
+    () => {
+      if (paused || state.isGameOver || !started) return;
       setState((s) => {
         playMusic(true);
-        // ソフトドロップは速度を上げる（2ステップ試行）
+        // ソフトドロップは速度をさらに上げる（4ステップ）
         let next = tryMove(s, { row: 1, col: 0 });
-        next = tryMove(next, { row: 1, col: 0 });
+        for (let i = 0; i < 3; i++) next = tryMove(next, { row: 1, col: 0 });
         return next;
-      }),
-    [],
+      });
+    },
+    [paused, started, state.isGameOver],
   );
 
   const onPauseToggle = useCallback(() => setPaused((p) => !p), []);
@@ -56,15 +62,24 @@ export const GameScreen: React.FC = () => {
   const cellSize = useMemo(() => Math.floor((Math.min(width, 380) - 16) / BOARD_COLS), [width]);
 
   const onRestart = useCallback(() => {
+    setPaused(false);
+    setStarted(true);
+    setState(() => initGame());
+    stopFxOver();
+    playMusic(true);
+  }, []);
+
+  const onStart = useCallback(() => {
+    setStarted(true);
+    setPaused(false);
     setState(() => initGame());
     playMusic(true);
   }, []);
 
-  // BGM と効果音
+  // アンマウント時にサウンド停止
   React.useEffect(() => {
-    playMusic(true);
     return () => {
-      stopMusic();
+      stopAllSounds();
     };
   }, []);
 
@@ -85,42 +100,70 @@ export const GameScreen: React.FC = () => {
     }
   }, [state.isGameOver]);
 
-  // ポーズ中はBGMも一時停止
+  // ポーズ中はBGM停止、再開でBGM開始
   React.useEffect(() => {
-    if (paused) pauseMusic();
-    else resumeMusic();
-  }, [paused]);
+    (async () => {
+      if (paused) {
+        await stopMusic();
+      } else if (started && !state.isGameOver) {
+        await playMusic(true);
+      }
+    })();
+  }, [paused, started, state.isGameOver]);
 
   return (
     <View style={styles.root}>
       <HUD score={state.score} next={state.nextPiece} isGameOver={state.isGameOver} />
-      {paused && <Text style={{ color: COLORS.text, alignSelf: 'center' }}>一時停止中（ダブルタップで再開）</Text>}
+      {paused && (
+        <Text style={{ color: COLORS.text, alignSelf: 'center' }}>一時停止中（2本指タップで再開）</Text>
+      )}
+      {!started && (
+        <Pressable style={[styles.btn, styles.start]} onPress={onStart}>
+          <Text style={styles.btnText}>スタート</Text>
+        </Pressable>
+      )}
       {ENABLE_GESTURES ? (
         <InputLayer>
-        <View style={styles.boardWrap}>
-          <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
-        </View>
+          {state.isGameOver ? (
+            <Pressable style={styles.boardWrap} onPress={onRestart}>
+              <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+            </Pressable>
+          ) : !started ? (
+            <View style={styles.boardWrap} />
+          ) : (
+            <View style={styles.boardWrap}>
+              <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+            </View>
+          )}
         </InputLayer>
       ) : (
-        <View style={styles.boardWrap} {...legacyHandlers}>
-          <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
-        </View>
+        state.isGameOver ? (
+          <Pressable style={styles.boardWrap} onPress={onRestart}>
+            <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+          </Pressable>
+        ) : !started ? (
+          <View style={styles.boardWrap} />
+        ) : (
+          <View style={styles.boardWrap} {...legacyHandlers}>
+            <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+          </View>
+        )
       )}
       <View style={styles.controls}>
-        <Pressable accessibilityLabel="左へ" style={styles.btn} onPress={onLeft}>
+        <Pressable accessibilityLabel="左へ" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onLeft} disabled={paused || !started}>
           <Text style={styles.btnText}>←</Text>
         </Pressable>
-        <Pressable accessibilityLabel="回転" style={styles.btn} onPress={onRotate}>
+        <Pressable accessibilityLabel="回転" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onRotate} disabled={paused || !started}>
           <Text style={styles.btnText}>⟳</Text>
         </Pressable>
-        <Pressable accessibilityLabel="右へ" style={styles.btn} onPress={onRight}>
+        <Pressable accessibilityLabel="右へ" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onRight} disabled={paused || !started}>
           <Text style={styles.btnText}>→</Text>
         </Pressable>
-        <Pressable accessibilityLabel="ソフトドロップ" style={[styles.btn, styles.accent]} onPress={onSoftDrop}>
+        <Pressable accessibilityLabel="ソフトドロップ" style={[styles.btn, styles.accent, paused||!started?styles.btnDisabled:null]} onPress={onSoftDrop} disabled={paused || !started}>
           <Text style={[styles.btnText, styles.accentText]}>↓</Text>
         </Pressable>
       </View>
-      {state.isGameOver && (
+      {(state.isGameOver || paused) && (
         <Pressable style={[styles.btn, styles.restart]} onPress={onRestart}>
           <Text style={styles.btnText}>再スタート</Text>
         </Pressable>
