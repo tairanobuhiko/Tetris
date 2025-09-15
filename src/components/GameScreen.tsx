@@ -80,6 +80,9 @@ export const GameScreen: React.FC = () => {
     setState(() => initGame());
     playMusic(true);
   }, []);
+  const onContinue = useCallback(() => {
+    setPaused(false);
+  }, []);
 
   // アンマウント時にサウンド停止
   React.useEffect(() => {
@@ -169,16 +172,23 @@ export const GameScreen: React.FC = () => {
         </Pressable>
       </View>
       {(state.isGameOver || paused) && (
-        <Pressable style={[styles.btn, styles.restart]} onPress={onRestart}>
-          <Text style={styles.btnText}>再スタート</Text>
-        </Pressable>
+        <View style={styles.bottomActions}>
+          {paused && !state.isGameOver && (
+            <Pressable style={[styles.btn, styles.restart]} onPress={onContinue}>
+              <Text style={styles.btnText}>つづける</Text>
+            </Pressable>
+          )}
+          <Pressable style={[styles.btn, styles.restart]} onPress={onRestart}>
+            <Text style={styles.btnText}>さいしょから</Text>
+          </Pressable>
+        </View>
       )}
 
       {state.isGameOver && (
         <View pointerEvents="none" style={styles.overlay}>
           <Text style={styles.overTitle}>GAME OVER</Text>
           <Text style={styles.overScore}>最終スコア: {state.score}</Text>
-          <Text style={styles.overHint}>タップでリスタート</Text>
+          <Text style={styles.overHint}>タップでさいしょから</Text>
         </View>
       )}
     </View>
@@ -205,6 +215,7 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
   start: { alignSelf: 'center' },
   restart: { alignSelf: 'center', marginTop: 8 },
+  bottomActions: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 8 },
   btnText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
   accent: { backgroundColor: COLORS.accent },
   accentText: { color: '#0b1020' },
