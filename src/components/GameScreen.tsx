@@ -6,6 +6,8 @@ import { COLORS } from '@/theme';
 import { initGame, tick, tryMove, tryRotate } from '@/game/engine';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import { useInputLayer } from '@/hooks/useInput';
+import { useLegacyResponder } from '@/hooks/useLegacyResponder';
+import { ENABLE_GESTURES } from '@/config';
 import { BOARD_COLS } from '@/game/constants';
 
 export const GameScreen: React.FC = () => {
@@ -23,6 +25,7 @@ export const GameScreen: React.FC = () => {
   const onSoftDrop = useCallback(() => setState((s) => tryMove(s, { row: 1, col: 0 })), []);
 
   const { Component: InputLayer } = useInputLayer({ onLeft, onRight, onRotate, onSoftDrop });
+  const legacyHandlers = useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop });
 
   const { width } = Dimensions.get('window');
   const cellSize = useMemo(() => Math.floor((Math.min(width, 380) - 16) / BOARD_COLS), [width]);
@@ -32,11 +35,17 @@ export const GameScreen: React.FC = () => {
   return (
     <View style={styles.root}>
       <HUD score={state.score} next={state.nextPiece} isGameOver={state.isGameOver} />
-      <InputLayer>
+      {ENABLE_GESTURES ? (
+        <InputLayer>
         <View style={styles.boardWrap}>
           <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
         </View>
-      </InputLayer>
+        </InputLayer>
+      ) : (
+        <View style={styles.boardWrap} {...legacyHandlers}>
+          <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+        </View>
+      )}
       <View style={styles.controls}>
         <Pressable accessibilityLabel="左へ" style={styles.btn} onPress={onLeft}>
           <Text style={styles.btnText}>←</Text>
@@ -80,4 +89,3 @@ const styles = StyleSheet.create({
   accent: { backgroundColor: COLORS.accent },
   accentText: { color: '#0b1020' },
 });
-
