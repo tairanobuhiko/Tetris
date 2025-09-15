@@ -155,23 +155,31 @@ export const GameScreen: React.FC = () => {
         )}
       </View>
       <View style={styles.controls}>
-        <Pressable accessibilityLabel="左へ" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onLeft} disabled={paused || !started}>
+        <Pressable accessibilityLabel="左へ" style={[styles.btn, (paused||!started)?styles.btnDisabled:null]} onPress={onLeft} disabled={paused || !started}>
           <Text style={styles.btnText}>←</Text>
         </Pressable>
-        <Pressable accessibilityLabel="回転" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onRotate} disabled={paused || !started}>
-          <Text style={styles.btnText}>⟳</Text>
+        <Pressable accessibilityLabel="ソフトドロップ" style={[styles.btn, styles.accent, (paused||!started)?styles.btnDisabled:null]} onPress={onSoftDrop} disabled={paused || !started}>
+          <Text style={[styles.btnText, styles.accentText]}>↓</Text>
         </Pressable>
-        <Pressable accessibilityLabel="右へ" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onRight} disabled={paused || !started}>
+        <Pressable accessibilityLabel="右へ" style={[styles.btn, (paused||!started)?styles.btnDisabled:null]} onPress={onRight} disabled={paused || !started}>
           <Text style={styles.btnText}>→</Text>
         </Pressable>
-        <Pressable accessibilityLabel="ソフトドロップ" style={[styles.btn, styles.accent, paused||!started?styles.btnDisabled:null]} onPress={onSoftDrop} disabled={paused || !started}>
-          <Text style={[styles.btnText, styles.accentText]}>↓</Text>
+        <Pressable accessibilityLabel="回転" style={[styles.btn, (paused||!started)?styles.btnDisabled:null]} onPress={onRotate} disabled={paused || !started}>
+          <Text style={styles.btnText}>⟳</Text>
         </Pressable>
       </View>
       {(state.isGameOver || paused) && (
         <Pressable style={[styles.btn, styles.restart]} onPress={onRestart}>
           <Text style={styles.btnText}>再スタート</Text>
         </Pressable>
+      )}
+
+      {state.isGameOver && (
+        <View pointerEvents="none" style={styles.overlay}>
+          <Text style={styles.overTitle}>GAME OVER</Text>
+          <Text style={styles.overScore}>最終スコア: {state.score}</Text>
+          <Text style={styles.overHint}>タップでリスタート</Text>
+        </View>
       )}
     </View>
   );
@@ -183,6 +191,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     padding: 16,
     gap: 12,
+    position: 'relative',
   },
   boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   boardWrap: { alignSelf: 'center' },
@@ -199,4 +208,18 @@ const styles = StyleSheet.create({
   btnText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
   accent: { backgroundColor: COLORS.accent },
   accentText: { color: '#0b1020' },
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    gap: 8,
+  },
+  overTitle: { color: COLORS.text, fontSize: 28, fontWeight: '800' },
+  overScore: { color: COLORS.text, fontSize: 36, fontWeight: '900' },
+  overHint: { color: COLORS.text, opacity: 0.85 },
 });
