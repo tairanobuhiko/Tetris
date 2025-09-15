@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-// 日本語: requestAnimationFrame ベースのループ。tickMs ごとにコールバック。
+// requestAnimationFrame ベースのループ。tickMs ごとにコールバック。
 export function useGameLoop(callback: () => void, tickMs: number) {
   const startRef = useRef<number | null>(null);
   const accRef = useRef(0);

@@ -6,7 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GameScreen } from '@/components/GameScreen';
 
-// 日本語: エントリーポイント。GameScreen を表示するだけの薄いラッパー。
+// エントリーポイント。GameScreen を表示するだけの薄いラッパー。
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>

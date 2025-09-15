@@ -1,6 +1,6 @@
 import { PieceKind, Shape } from './types';
 
-// 日本語: 4x4 を基本にした回転用シェイプ
+// 4x4 を基本にした回転用シェイプ
 const SHAPES: Record<PieceKind, Shape> = {
   I: [
     [0, 0, 0, 0],
@@ -44,13 +44,15 @@ export function getInitialShape(kind: PieceKind): Shape {
 }
 
 export function rotateCW(shape: Shape): Shape {
-  // 日本語: 時計回り 90 度
+  // 時計回り 90 度
   const rows = shape.length;
-  const cols = shape[0].length;
+  if (rows === 0) return [];
+  const cols = shape[0]!.length;
   const out: Shape = Array.from({ length: cols }, () => Array(rows).fill(0));
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      out[c][rows - 1 - r] = shape[r][c];
+      const targetRow = out[c]!;
+      targetRow[rows - 1 - r] = shape[r]?.[c] ?? 0;
     }
   }
   return out;
@@ -58,6 +60,5 @@ export function rotateCW(shape: Shape): Shape {
 
 export function randomKind(): PieceKind {
   const kinds: PieceKind[] = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
-  return kinds[Math.floor(Math.random() * kinds.length)];
+  return kinds[Math.floor(Math.random() * kinds.length)]!;
 }
-

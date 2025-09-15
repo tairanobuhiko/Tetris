@@ -6,13 +6,15 @@ export type LegacyHandlers = {
   onRight: () => void;
   onRotate: () => void;
   onSoftDrop: () => void;
+  onPause?: () => void; // ダブルタップでポーズ
 };
 
-// 日本語: RNGH を使わず、標準の PanResponder で簡易ジェスチャ。
-export function useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop }: LegacyHandlers) {
+// RNGH を使わず、標準の PanResponder で簡易ジェスチャ。
+export function useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop, onPause }: LegacyHandlers): PanResponderInstance['panHandlers'] {
   let startX = 0;
   let startY = 0;
   let moved = false;
+  let lastTap = 0;
 
   const responder: PanResponderInstance = useMemo(
     () =>
@@ -23,6 +25,11 @@ export function useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop }: Le
           startX = e.nativeEvent.locationX;
           startY = e.nativeEvent.locationY;
           moved = false;
+          // 2本指タップでポーズ
+          const touches = (e.nativeEvent as any).touches;
+          if (Array.isArray(touches) && touches.length >= 2) {
+            onPause?.();
+          }
         },
         onPanResponderMove: (e, g) => {
           // 閾値
@@ -35,6 +42,7 @@ export function useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop }: Le
           const dy = g.dy;
           const adx = Math.abs(dx);
           const ady = Math.abs(dy);
+          // シングルタップは回転
           if (!moved || (adx < 16 && ady < 16)) {
             onRotate();
             return;
@@ -52,4 +60,3 @@ export function useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop }: Le
 
   return responder.panHandlers;
 }
-

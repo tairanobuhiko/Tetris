@@ -1,19 +1,20 @@
-import { useCallback } from 'react';
+import { useCallback, type FC, type PropsWithChildren } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { ViewStyle } from 'react-native';
 
-// 日本語: 入力ジェスチャーレイヤー。左右スワイプ、下スワイプ、タップを公開。
+// 入力ジェスチャーレイヤー。左右スワイプ、下スワイプ、タップを公開。
 export type InputHandlers = {
   onLeft: () => void;
   onRight: () => void;
   onRotate: () => void;
   onSoftDrop: () => void;
+  onPause?: () => void; // ダブルタップでポーズ
 };
 
 export function useInputLayer(
   handlers: InputHandlers,
   style?: ViewStyle,
-): { Component: React.FC<React.PropsWithChildren> } {
+): { Component: FC<PropsWithChildren> } {
   const pan = Gesture.Pan()
     .onEnd((e) => {
       const dx = e.translationX;
@@ -28,9 +29,10 @@ export function useInputLayer(
     .minDistance(12);
 
   const tap = Gesture.Tap().onEnd(() => handlers.onRotate());
-  const composed = Gesture.Simultaneous(pan, tap);
+  const two = Gesture.Tap().minPointers(2).onEnd(() => handlers.onPause?.());
+  const composed = Gesture.Race(two, Gesture.Simultaneous(pan, tap));
 
-  const Component: React.FC<React.PropsWithChildren> = useCallback(
+  const Component: FC<PropsWithChildren> = useCallback(
     ({ children }) => (
       <GestureDetector gesture={composed}>{children}</GestureDetector>
     ),
@@ -39,4 +41,3 @@ export function useInputLayer(
 
   return { Component };
 }
-

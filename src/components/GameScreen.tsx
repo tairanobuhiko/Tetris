@@ -3,38 +3,98 @@ import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Board as BoardComp } from '@/components/Board';
 import { HUD } from '@/components/HUD';
 import { COLORS } from '@/theme';
+import { playMusic, stopMusic, pauseMusic, resumeMusic, playGameOver, playLineClear } from '../audio/audio';
 import { initGame, tick, tryMove, tryRotate } from '@/game/engine';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import { useInputLayer } from '@/hooks/useInput';
 import { useLegacyResponder } from '@/hooks/useLegacyResponder';
-import { ENABLE_GESTURES } from '@/config';
+import { ENABLE_GESTURES } from '../config';
 import { BOARD_COLS } from '@/game/constants';
 
 export const GameScreen: React.FC = () => {
   const [state, setState] = useState(() => initGame());
+  const [paused, setPaused] = useState(false);
 
-  // 日本語: ゲームループ（1秒ごと）
+  // ゲームループ（1秒ごと）
   useGameLoop(
-    useCallback(() => setState((s) => tick(s)), []),
+    useCallback(() => {
+      if (!paused) setState((s) => tick(s));
+    }, [paused]),
     state.tickMs,
   );
 
-  const onLeft = useCallback(() => setState((s) => tryMove(s, { row: 0, col: -1 })), []);
-  const onRight = useCallback(() => setState((s) => tryMove(s, { row: 0, col: 1 })), []);
-  const onRotate = useCallback(() => setState((s) => tryRotate(s)), []);
-  const onSoftDrop = useCallback(() => setState((s) => tryMove(s, { row: 1, col: 0 })), []);
+  const onLeft = useCallback(() => {
+    playMusic(true);
+    setState((s) => tryMove(s, { row: 0, col: -1 }));
+  }, []);
+  const onRight = useCallback(() => {
+    playMusic(true);
+    setState((s) => tryMove(s, { row: 0, col: 1 }));
+  }, []);
+  const onRotate = useCallback(() => {
+    playMusic(true);
+    setState((s) => tryRotate(s));
+  }, []);
+  const onSoftDrop = useCallback(
+    () =>
+      setState((s) => {
+        playMusic(true);
+        // ソフトドロップは速度を上げる（2ステップ試行）
+        let next = tryMove(s, { row: 1, col: 0 });
+        next = tryMove(next, { row: 1, col: 0 });
+        return next;
+      }),
+    [],
+  );
 
-  const { Component: InputLayer } = useInputLayer({ onLeft, onRight, onRotate, onSoftDrop });
-  const legacyHandlers = useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop });
+  const onPauseToggle = useCallback(() => setPaused((p) => !p), []);
+
+  const { Component: InputLayer } = useInputLayer({ onLeft, onRight, onRotate, onSoftDrop, onPause: onPauseToggle });
+  const legacyHandlers = useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop, onPause: onPauseToggle });
 
   const { width } = Dimensions.get('window');
   const cellSize = useMemo(() => Math.floor((Math.min(width, 380) - 16) / BOARD_COLS), [width]);
 
-  const onRestart = useCallback(() => setState(() => initGame()), []);
+  const onRestart = useCallback(() => {
+    setState(() => initGame());
+    playMusic(true);
+  }, []);
+
+  // BGM と効果音
+  React.useEffect(() => {
+    playMusic(true);
+    return () => {
+      stopMusic();
+    };
+  }, []);
+
+  // ライン消去で効果音
+  const prevLines = React.useRef(state.linesCleared);
+  React.useEffect(() => {
+    if (state.linesCleared > prevLines.current) {
+      playLineClear();
+      prevLines.current = state.linesCleared;
+    }
+  }, [state.linesCleared]);
+
+  // ゲームオーバーでBGM停止＋効果音
+  React.useEffect(() => {
+    if (state.isGameOver) {
+      stopMusic();
+      playGameOver();
+    }
+  }, [state.isGameOver]);
+
+  // ポーズ中はBGMも一時停止
+  React.useEffect(() => {
+    if (paused) pauseMusic();
+    else resumeMusic();
+  }, [paused]);
 
   return (
     <View style={styles.root}>
       <HUD score={state.score} next={state.nextPiece} isGameOver={state.isGameOver} />
+      {paused && <Text style={{ color: COLORS.text, alignSelf: 'center' }}>一時停止中（ダブルタップで再開）</Text>}
       {ENABLE_GESTURES ? (
         <InputLayer>
         <View style={styles.boardWrap}>

@@ -24,5 +24,5 @@ export type GameState = {
   linesCleared: number;
   isGameOver: boolean;
   tickMs: number;
+  startAt: number; // UNIX ms
 };
-

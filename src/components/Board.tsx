@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Board as BoardType, FallingPiece } from '@/game/types';
-import { COLORS } from '@/theme';
+import { COLORS, PIECE_COLORS } from '@/theme';
 import { Cell } from './Cell';
 
 type Props = {
@@ -11,15 +11,19 @@ type Props = {
 };
 
 export const Board: React.FC<Props> = ({ board, piece, cellSize }) => {
-  // 日本語: 表示用の合成（board + falling piece）。色は簡易的に kind で決定。
+  // 表示用の合成（board + falling piece）。色は簡易的に kind で決定。
   const display = board.map((row) => row.slice());
   for (let r = 0; r < piece.shape.length; r++) {
-    for (let c = 0; c < piece.shape[r].length; c++) {
-      if (piece.shape[r][c]) {
+    const rowShape = piece.shape[r];
+    if (!rowShape) continue;
+    for (let c = 0; c < rowShape.length; c++) {
+      if (rowShape[c]) {
         const rr = piece.position.row + r;
         const cc = piece.position.col + c;
-        if (rr >= 0 && rr < display.length && cc >= 0 && cc < display[0].length) {
-          display[rr][cc] = 1;
+        const cols = display[0]?.length ?? 0;
+        if (rr >= 0 && rr < display.length && cc >= 0 && cc < cols) {
+          const targetRow = display[rr];
+          if (targetRow) targetRow[cc] = 1;
         }
       }
     }
@@ -30,7 +34,12 @@ export const Board: React.FC<Props> = ({ board, piece, cellSize }) => {
       {display.map((row, ri) => (
         <View key={`r-${ri}`} style={styles.row}>
           {row.map((cell, ci) => (
-            <Cell key={`c-${ri}-${ci}`} filled={!!cell} colorKey={piece.kind} size={cellSize} />
+            <Cell
+              key={`c-${ri}-${ci}`}
+              filled={!!cell}
+              colorKey={piece.kind as keyof typeof PIECE_COLORS}
+              size={cellSize}
+            />
           ))}
         </View>
       ))}
@@ -46,4 +55,3 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row' },
 });
-

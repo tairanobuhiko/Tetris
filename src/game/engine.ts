@@ -6,12 +6,13 @@ import { FallingPiece, GameState, PieceKind, Position } from './types';
 function spawnPiece(): FallingPiece {
   const kind: PieceKind = randomKind();
   const shape = getInitialShape(kind);
-  const position: Position = { row: 0, col: Math.floor((BOARD_COLS - shape[0].length) / 2) };
+  const firstRow = shape[0] ?? [];
+  const position: Position = { row: 0, col: Math.floor((BOARD_COLS - firstRow.length) / 2) };
   return { kind, shape, position };
 }
 
 export function initGame(): GameState {
-  // 日本語: 初期化（最初のピースと次ピースを準備）
+  // 初期化（最初のピースと次ピースを準備）
   const currentPiece = spawnPiece();
   const nextPiece = spawnPiece();
   return {
@@ -22,6 +23,7 @@ export function initGame(): GameState {
     linesCleared: 0,
     isGameOver: false,
     tickMs: INITIAL_TICK_MS,
+    startAt: Date.now(),
   };
 }
 
@@ -44,7 +46,7 @@ export function tryRotate(state: GameState): GameState {
   if (canPlace(state.board, rotatedPiece, rotatedPiece.position)) {
     return { ...state, currentPiece: rotatedPiece };
   }
-  // 日本語: 壁蹴り（簡易）- 左右に1マスずらして試す
+  // 壁蹴り（簡易）- 左右に1マスずらして試す
   for (const dx of [-1, 1]) {
     const pos = { ...rotatedPiece.position, col: rotatedPiece.position.col + dx };
     if (canPlace(state.board, rotatedPiece, pos)) {
@@ -57,11 +59,12 @@ export function tryRotate(state: GameState): GameState {
 export function tick(state: GameState): GameState {
   if (state.isGameOver) return state;
   const moved = tryMove(state, { row: 1, col: 0 });
-  // 日本語: 動けなければ着地
+  // 動けなければ着地
   if (moved === state) {
     const merged = mergePiece(state.board, state.currentPiece);
     const { board, cleared } = clearFullLines(merged);
-    const scoreGain = cleared > 0 ? Math.max(0, [0, 100, 300, 500, 800][cleared]) : 0;
+    const scoreTable = [0, 100, 300, 500, 800] as const;
+    const scoreGain = cleared > 0 ? Math.max(0, scoreTable[cleared] ?? 0) : 0;
     const next = state.nextPiece;
     const spawn: GameState = {
       ...state,
@@ -71,12 +74,17 @@ export function tick(state: GameState): GameState {
       currentPiece: next,
       nextPiece: spawnPiece(),
     };
-    // 日本語: 生成位置で衝突したらゲームオーバー
+    // 生成位置で衝突したらゲームオーバー
     if (!canPlace(spawn.board, spawn.currentPiece, spawn.currentPiece.position)) {
       return { ...spawn, isGameOver: true };
     }
-    return spawn;
+    return applyDifficulty(spawn);
   }
-  return moved;
+  return applyDifficulty(moved);
 }
 
+function applyDifficulty(s: GameState): GameState {
+  const elapsedMin = Math.floor((Date.now() - s.startAt) / 60000);
+  const faster = Math.max(200, INITIAL_TICK_MS - elapsedMin * 100); // 1分ごとに100ms短縮、下限200ms
+  return s.tickMs === faster ? s : { ...s, tickMs: faster };
+}
