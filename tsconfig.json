@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/components/*": [
+        "src/components/*"
+      ],
+      "@/game/*": [
+        "src/game/*"
+      ],
+      "@/hooks/*": [
+        "src/hooks/*"
+      ],
+      "@/state/*": [
+        "src/state/*"
+      ],
+      "@/assets/*": [
+        "src/assets/*"
+      ],
+      "@/theme": [
+        "src/theme"
+      ]
+    }
+  },
+  "include": [
+    "expo-entry.js",
+    "App.tsx",
+    "src",
+    "__tests__",
+    "jest.setup.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "extends": "expo/tsconfig.base"
+}

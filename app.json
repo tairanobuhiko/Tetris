@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "RN Tetris",
+    "slug": "rn-tetris",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "extra": {
+      "eas": {
+        "projectId": "LOCAL-ONLY"
+      }
+    }
+  }
+}
