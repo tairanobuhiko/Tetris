@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { Board as BoardComp } from '@/components/Board';
 import { HUD } from '@/components/HUD';
 import { COLORS } from '@/theme';
@@ -58,8 +58,13 @@ export const GameScreen: React.FC = () => {
   const { Component: InputLayer } = useInputLayer({ onLeft, onRight, onRotate, onSoftDrop, onPause: onPauseToggle });
   const legacyHandlers = useLegacyResponder({ onLeft, onRight, onRotate, onSoftDrop, onPause: onPauseToggle });
 
-  const { width } = Dimensions.get('window');
-  const cellSize = useMemo(() => Math.floor((Math.min(width, 380) - 16) / BOARD_COLS), [width]);
+  const win = useWindowDimensions();
+  const [area, setArea] = useState({ w: 0, h: 0 });
+  const cellSize = useMemo(() => {
+    const byWidth = area.w > 0 ? Math.floor((area.w - 8) / BOARD_COLS) : Math.floor((Math.min(win.width, 380) - 16) / BOARD_COLS);
+    const byHeight = area.h > 0 ? Math.floor((area.h - 8) / 20) : byWidth; // 20 行固定
+    return Math.max(12, Math.min(byWidth, byHeight));
+  }, [area.w, area.h, win.width]);
 
   const onRestart = useCallback(() => {
     setPaused(false);
@@ -122,33 +127,33 @@ export const GameScreen: React.FC = () => {
           <Text style={styles.btnText}>スタート</Text>
         </Pressable>
       )}
-      {ENABLE_GESTURES ? (
-        <InputLayer>
-          {state.isGameOver ? (
-            <Pressable style={styles.boardWrap} onPress={onRestart}>
-              <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
-            </Pressable>
-          ) : !started ? (
-            <View style={styles.boardWrap} />
-          ) : (
-            <View style={styles.boardWrap}>
-              <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
-            </View>
-          )}
-        </InputLayer>
-      ) : (
-        state.isGameOver ? (
-          <Pressable style={styles.boardWrap} onPress={onRestart}>
+      <View style={styles.boardArea} onLayout={(e) => setArea({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+        {ENABLE_GESTURES ? (
+          <InputLayer>
+            {state.isGameOver ? (
+              <Pressable onPress={onRestart}>
+                <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+              </Pressable>
+            ) : !started ? (
+              <View />
+            ) : (
+              <View>
+                <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
+              </View>
+            )}
+          </InputLayer>
+        ) : state.isGameOver ? (
+          <Pressable onPress={onRestart}>
             <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
           </Pressable>
         ) : !started ? (
-          <View style={styles.boardWrap} />
+          <View />
         ) : (
-          <View style={styles.boardWrap} {...legacyHandlers}>
+          <View {...legacyHandlers}>
             <BoardComp board={state.board} piece={state.currentPiece} cellSize={cellSize} />
           </View>
-        )
-      )}
+        )}
+      </View>
       <View style={styles.controls}>
         <Pressable accessibilityLabel="左へ" style={[styles.btn, paused||!started?styles.btnDisabled:null]} onPress={onLeft} disabled={paused || !started}>
           <Text style={styles.btnText}>←</Text>
@@ -179,6 +184,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   boardWrap: { alignSelf: 'center' },
   controls: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   btn: {
@@ -187,6 +193,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
   },
+  btnDisabled: { opacity: 0.4 },
+  start: { alignSelf: 'center' },
   restart: { alignSelf: 'center', marginTop: 8 },
   btnText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
   accent: { backgroundColor: COLORS.accent },

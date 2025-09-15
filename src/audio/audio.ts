@@ -43,28 +43,41 @@ export async function initAudio() {
 }
 
 let musicStarted = false;
+let musicLoading = false;
 
 export async function playMusic(loop = true) {
   await initAudio();
   if (bgmSound) {
-    // 既に読み込み済み
-    if (!musicStarted) {
-      await bgmSound.playAsync();
+    try {
+      const st = await bgmSound.getStatusAsync();
+      if (!(st as any).isLoaded) {
+        // まれにunloadedなら再ロード
+        if (BGM_REQUIRE) await bgmSound.loadAsync(BGM_REQUIRE);
+        else await bgmSound.loadAsync({ uri: files.bgm });
+      }
+      await bgmSound.setIsLoopingAsync(loop);
+      if (!(st as any).isPlaying) await bgmSound.playAsync();
       musicStarted = true;
-    }
+    } catch {}
     return;
   }
-  const snd = new Audio.Sound();
-  if (BGM_REQUIRE) {
-    await snd.loadAsync(BGM_REQUIRE);
-  } else {
-    await snd.loadAsync({ uri: files.bgm });
+  if (musicLoading) return;
+  musicLoading = true;
+  try {
+    const snd = new Audio.Sound();
+    if (BGM_REQUIRE) {
+      await snd.loadAsync(BGM_REQUIRE);
+    } else {
+      await snd.loadAsync({ uri: files.bgm });
+    }
+    await snd.setIsLoopingAsync(loop);
+    await snd.setVolumeAsync(0.25);
+    await snd.playAsync();
+    bgmSound = snd;
+    musicStarted = true;
+  } finally {
+    musicLoading = false;
   }
-  await snd.setIsLoopingAsync(loop);
-  await snd.setVolumeAsync(0.25);
-  await snd.playAsync();
-  bgmSound = snd;
-  musicStarted = true;
 }
 
 export async function pauseMusic() {
@@ -81,6 +94,7 @@ export async function stopMusic() {
     await bgmSound.unloadAsync();
     bgmSound = null;
     musicStarted = false;
+    musicLoading = false;
   }
 }
 
