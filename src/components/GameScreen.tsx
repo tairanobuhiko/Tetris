@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Board as BoardComp } from '@/components/Board';
 import { HUD } from '@/components/HUD';
 import { COLORS } from '@/theme';
@@ -158,17 +159,44 @@ export const GameScreen: React.FC = () => {
         )}
       </View>
       <View style={styles.controls}>
-        <Pressable accessibilityLabel="左へ" style={[styles.btn, (paused||!started)?styles.btnDisabled:null]} onPress={onLeft} disabled={paused || !started}>
-          <Text style={styles.btnText}>←</Text>
+        <Pressable
+          accessibilityLabel="左へ"
+          style={[styles.btn, (paused||!started)?styles.btnDisabled:null]}
+          onPress={onLeft}
+          disabled={paused || !started}
+        >
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </Pressable>
-        <Pressable accessibilityLabel="ソフトドロップ" style={[styles.btn, styles.accent, (paused||!started)?styles.btnDisabled:null]} onPress={onSoftDrop} disabled={paused || !started}>
-          <Text style={[styles.btnText, styles.accentText]}>↓</Text>
+        <Pressable
+          accessibilityLabel="回転"
+          style={[styles.btn, (paused||!started)?styles.btnDisabled:null]}
+          onPress={onRotate}
+          disabled={paused || !started}
+        >
+          <Ionicons name="refresh" size={24} color={COLORS.text} />
         </Pressable>
-        <Pressable accessibilityLabel="右へ" style={[styles.btn, (paused||!started)?styles.btnDisabled:null]} onPress={onRight} disabled={paused || !started}>
-          <Text style={styles.btnText}>→</Text>
+        <Pressable
+          accessibilityLabel="右へ"
+          style={[styles.btn, (paused||!started)?styles.btnDisabled:null]}
+          onPress={onRight}
+          disabled={paused || !started}
+        >
+          <Ionicons name="arrow-forward" size={24} color={COLORS.text} />
         </Pressable>
-        <Pressable accessibilityLabel="回転" style={[styles.btn, (paused||!started)?styles.btnDisabled:null]} onPress={onRotate} disabled={paused || !started}>
-          <Text style={styles.btnText}>⟳</Text>
+        <Pressable
+          accessibilityLabel="ソフトドロップ"
+          style={[styles.btn, styles.accent, (paused||!started)?styles.btnDisabled:null]}
+          onPress={onSoftDrop}
+          disabled={paused || !started}
+        >
+          <Ionicons name="arrow-down" size={24} color={'#0b1020'} />
+        </Pressable>
+        <Pressable
+          accessibilityLabel={paused ? 'つづける' : 'ポーズ'}
+          style={[styles.btn]}
+          onPress={onPauseToggle}
+        >
+          <Ionicons name={paused ? 'play' : 'pause'} size={24} color={COLORS.text} />
         </Pressable>
       </View>
       {(state.isGameOver || paused) && (
