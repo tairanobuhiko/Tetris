@@ -21,20 +21,21 @@ export const BGM_TRACKS: readonly BgmTrackDefinition[] = [
     id: 'kirby',
     title: 'カービィのテーマ',
     asset: require('../assets/audio/bgm.caf'),
-    volume: 0.28,
+    volume: 1.00,
     description: 'カービィのテーマソング',
   },
   {
     id: 'remix_kirby',
     title: 'カービィのテーマ (リミックス)',
     asset: require('../assets/audio/Green_Greens_Remix.caf'),
-    volume: 0.32,
+    volume: 1.00,
     description: 'カービィのテーマソングのリミックス風アレンジ',
   },
   {
     id: 'house_beat',
     title: 'ハウスビート',
     asset: require('../assets/audio/house_beat.mp3'),
+    volume: 1.00,
     description: 'Cover - Patrick Patrikios',
   },
 ];
