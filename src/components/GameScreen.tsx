@@ -1,9 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+const { Ionicons } = require('@expo/vector-icons');
 import { Board as BoardComp } from '@/components/Board';
 import { HUD } from '@/components/HUD';
 import { COLORS } from '@/theme';
+import { SettingsModal } from '@/components/SettingsModal';
+import { BGM_OPTIONS, useSettings } from '@/state/settings';
 import { playMusic, stopMusic, stopAllSounds, stopFxOver, playGameOver, playLineClear } from '../audio/audio';
 import { initGame, tick, tryMove, tryRotate } from '@/game/engine';
 import { useGameLoop } from '@/hooks/useGameLoop';
@@ -16,6 +18,13 @@ export const GameScreen: React.FC = () => {
   const [state, setState] = useState(() => initGame());
   const [paused, setPaused] = useState(false);
   const [started, setStarted] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const { bgmTrackId, changeBgmTrack } = useSettings();
+
+  const activeBgm = useMemo(
+    () => BGM_OPTIONS.find((option) => option.id === bgmTrackId) ?? BGM_OPTIONS[0],
+    [bgmTrackId],
+  );
 
   // ゲームループ（1秒ごと）
   useGameLoop(
@@ -85,6 +94,17 @@ export const GameScreen: React.FC = () => {
     setPaused(false);
   }, []);
 
+  const onOpenSettings = useCallback(() => {
+    if (!started || paused) setSettingsVisible(true);
+  }, [paused, started]);
+  const onCloseSettings = useCallback(() => setSettingsVisible(false), []);
+  const onSelectBgm = useCallback(
+    async (id: string) => {
+      await changeBgmTrack(id);
+    },
+    [changeBgmTrack],
+  );
+
   // アンマウント時にサウンド停止
   React.useEffect(() => {
     return () => {
@@ -122,9 +142,27 @@ export const GameScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      <HUD score={state.score} next={state.nextPiece} isGameOver={state.isGameOver} />
+      <View pointerEvents="none" style={styles.glowPrimary} />
+      <View pointerEvents="none" style={styles.glowSecondary} />
+      <View style={styles.topBar}>
+        <HUD
+          score={state.score}
+          next={state.nextPiece}
+          isGameOver={state.isGameOver}
+          activeBgmTitle={activeBgm?.title ?? ''}
+        />
+        {(!started || paused) && (
+          <Pressable
+            accessibilityLabel="サウンド設定"
+            style={styles.settingsButton}
+            onPress={onOpenSettings}
+          >
+            <Ionicons name="settings-sharp" size={22} color={COLORS.text} />
+          </Pressable>
+        )}
+      </View>
       {paused && (
-        <Text style={{ color: COLORS.text, alignSelf: 'center' }}>一時停止中（2本指タップで再開）</Text>
+        <Text style={styles.pauseLabel}>一時停止中（2本指タップで再開）</Text>
       )}
       {!started && (
         <Pressable style={[styles.btn, styles.start]} onPress={onStart}>
@@ -219,6 +257,12 @@ export const GameScreen: React.FC = () => {
           <Text style={styles.overHint}>タップでさいしょから</Text>
         </View>
       )}
+      <SettingsModal
+        visible={settingsVisible}
+        onClose={onCloseSettings}
+        onSelectBgm={onSelectBgm}
+        selectedBgmId={bgmTrackId}
+      />
     </View>
   );
 };
@@ -227,25 +271,53 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    padding: 16,
-    gap: 12,
+    padding: 20,
+    gap: 16,
     position: 'relative',
   },
+  glowPrimary: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    backgroundColor: 'rgba(59,130,246,0.28)',
+    borderRadius: 200,
+    top: -80,
+    right: -60,
+  },
+  glowSecondary: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    backgroundColor: 'rgba(56,189,248,0.18)',
+    borderRadius: 200,
+    bottom: -70,
+    left: -40,
+  },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   boardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   boardWrap: { alignSelf: 'center' },
-  controls: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  controls: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
   btn: {
-    backgroundColor: '#1f2937',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: 'rgba(148,163,184,0.16)',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.26)',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
   },
   btnDisabled: { opacity: 0.4 },
   start: { alignSelf: 'center' },
   restart: { alignSelf: 'center', marginTop: 8 },
   bottomActions: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 8 },
-  btnText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
-  accent: { backgroundColor: COLORS.accent },
+  btnText: { color: COLORS.text, fontSize: 18, fontWeight: '700', letterSpacing: 1.1 },
+  accent: {
+    backgroundColor: COLORS.accent,
+    borderColor: 'rgba(14,165,233,0.45)',
+  },
   accentText: { color: '#0b1020' },
   overlay: {
     position: 'absolute',
@@ -255,10 +327,31 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    gap: 8,
+    backgroundColor: 'rgba(2,6,23,0.78)',
+    gap: 10,
   },
-  overTitle: { color: COLORS.text, fontSize: 28, fontWeight: '800' },
-  overScore: { color: COLORS.text, fontSize: 36, fontWeight: '900' },
-  overHint: { color: COLORS.text, opacity: 0.85 },
+  overTitle: { color: COLORS.text, fontSize: 30, fontWeight: '800', letterSpacing: 8 },
+  overScore: { color: COLORS.text, fontSize: 34, fontWeight: '900' },
+  overHint: { color: COLORS.text, opacity: 0.85, fontSize: 16 },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.32)',
+    backgroundColor: 'rgba(15,23,42,0.52)',
+  },
+  pauseLabel: {
+    color: COLORS.text,
+    alignSelf: 'center',
+    fontSize: 16,
+    backgroundColor: 'rgba(15,23,42,0.6)',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.24)',
+  },
 });

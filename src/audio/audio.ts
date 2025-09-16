@@ -1,79 +1,128 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
-import { BGM_REQUIRE, LINE_REQUIRE, OVER_REQUIRE } from '../config';
+import { BGM_TRACKS, DEFAULT_BGM_TRACK_ID, LINE_REQUIRE, OVER_REQUIRE, type BgmTrackDefinition } from '../config';
 import { synthWavBase64 } from './synth';
 
-// シンプルなサウンド管理（ローカル生成 WAV を一時ファイルへ保存して再生）
-
+// サウンドファイルのパス管理
 const files = {
-  bgm: FileSystem.cacheDirectory + 'tetris_bgm.wav',
   line: FileSystem.cacheDirectory + 'tetris_line.wav',
   over: FileSystem.cacheDirectory + 'tetris_over.wav',
 };
 
+const synthBgmCache = new Map<string, string>();
+const trackMap = new Map<string, BgmTrackDefinition>(BGM_TRACKS.map((track) => [track.id, track]));
+
+const resolveDefaultTrack = (): BgmTrackDefinition => {
+  const fallback = trackMap.get(DEFAULT_BGM_TRACK_ID) ?? BGM_TRACKS[0];
+  if (!fallback) {
+    throw new Error('BGM プリセットが定義されていません');
+  }
+  return fallback;
+};
+
+let currentTrack = resolveDefaultTrack();
 let bgmSound: Audio.Sound | null = null;
+let bgmSoundTrackId: string | null = null;
 let fxLine: Audio.Sound | null = null;
 let fxOver: Audio.Sound | null = null;
+let musicStarted = false;
+let musicLoading = false;
 
-async function ensureFiles() {
-  // 既に存在するならスキップ
+type SoundSource = Parameters<typeof Audio.Sound.createAsync>[0];
+
+async function ensureFxFiles() {
   const infos = await Promise.all(
     Object.values(files).map((p) => FileSystem.getInfoAsync(p))
   );
   const exists = (idx: number) => (infos[idx] as FileSystem.FileInfo).exists;
 
   if (!exists(0)) {
-    // BGM は少し長め
-    const base = synthWavBase64({ frequency: 220, durationMs: 800, volume: 0.12 });
-    await FileSystem.writeAsStringAsync(files.bgm, base, { encoding: FileSystem.EncodingType.Base64 });
-  }
-  if (!exists(1)) {
     const base = synthWavBase64({ frequency: 880, durationMs: 120, volume: 0.3 });
     await FileSystem.writeAsStringAsync(files.line, base, { encoding: FileSystem.EncodingType.Base64 });
   }
-  if (!exists(2)) {
+  if (!exists(1)) {
     const base = synthWavBase64({ frequency: 180, durationMs: 400, volume: 0.25 });
     await FileSystem.writeAsStringAsync(files.over, base, { encoding: FileSystem.EncodingType.Base64 });
   }
 }
 
-export async function initAudio() {
-  await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-  await ensureFiles();
+async function ensureSynthTrack(track: BgmTrackDefinition): Promise<string | null> {
+  if (!track.synth) return null;
+  const cachePath = synthBgmCache.get(track.id);
+  if (cachePath) return cachePath;
+  const target = FileSystem.cacheDirectory + `tetris_bgm_${track.id}.wav`;
+  const info = await FileSystem.getInfoAsync(target);
+  if (!info.exists) {
+    const base = synthWavBase64(track.synth);
+    await FileSystem.writeAsStringAsync(target, base, { encoding: FileSystem.EncodingType.Base64 });
+  }
+  synthBgmCache.set(track.id, target);
+  return target;
 }
 
-let musicStarted = false;
-let musicLoading = false;
+function resolveTrack(id: string): BgmTrackDefinition {
+  return trackMap.get(id) ?? resolveDefaultTrack();
+}
+
+function isSilentTrack(track: BgmTrackDefinition): boolean {
+  return track.asset === null;
+}
+
+async function loadSourceForTrack(track: BgmTrackDefinition): Promise<SoundSource | null> {
+  if (isSilentTrack(track)) return null;
+  if (typeof track.asset === 'number') return track.asset;
+  const synthPath = await ensureSynthTrack(track);
+  if (synthPath) return { uri: synthPath } as SoundSource;
+  return null;
+}
+
+export async function initAudio() {
+  await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+  await ensureFxFiles();
+}
 
 export async function playMusic(loop = true) {
   await initAudio();
-  if (bgmSound) {
+  const track = currentTrack;
+  const source = await loadSourceForTrack(track);
+
+  if (!source) {
+    // サイレント設定なので既存サウンドを停止
+    if (bgmSound) await stopMusic();
+    musicStarted = true;
+    return;
+  }
+
+  if (bgmSound && bgmSoundTrackId === track.id) {
     try {
       const st = await bgmSound.getStatusAsync();
       if (!(st as any).isLoaded) {
-        // まれにunloadedなら再ロード
-        if (BGM_REQUIRE) await bgmSound.loadAsync(BGM_REQUIRE);
-        else await bgmSound.loadAsync({ uri: files.bgm });
+        await bgmSound.loadAsync(source);
       }
       await bgmSound.setIsLoopingAsync(loop);
       if (!(st as any).isPlaying) await bgmSound.playAsync();
       musicStarted = true;
-    } catch {}
+    } catch {
+      await stopMusic();
+      await playMusic(loop);
+    }
     return;
   }
+
   if (musicLoading) return;
   musicLoading = true;
   try {
-    const snd = new Audio.Sound();
-    if (BGM_REQUIRE) {
-      await snd.loadAsync(BGM_REQUIRE);
-    } else {
-      await snd.loadAsync({ uri: files.bgm });
+    if (bgmSound) {
+      try { await bgmSound.stopAsync(); } catch {}
+      try { await bgmSound.unloadAsync(); } catch {}
     }
+    const snd = new Audio.Sound();
+    await snd.loadAsync(source);
     await snd.setIsLoopingAsync(loop);
-    await snd.setVolumeAsync(0.25);
+    await snd.setVolumeAsync(track.volume ?? 0.25);
     await snd.playAsync();
     bgmSound = snd;
+    bgmSoundTrackId = track.id;
     musicStarted = true;
   } finally {
     musicLoading = false;
@@ -86,16 +135,39 @@ export async function pauseMusic() {
 
 export async function resumeMusic() {
   if (bgmSound) await bgmSound.playAsync();
+  else if (!isSilentTrack(currentTrack)) await playMusic(true);
 }
 
 export async function stopMusic() {
   if (bgmSound) {
-    await bgmSound.stopAsync();
-    await bgmSound.unloadAsync();
+    try { await bgmSound.stopAsync(); } catch {}
+    try { await bgmSound.unloadAsync(); } catch {}
     bgmSound = null;
-    musicStarted = false;
-    musicLoading = false;
   }
+  bgmSoundTrackId = null;
+  musicStarted = false;
+  musicLoading = false;
+}
+
+export async function selectBgmTrack(id: string) {
+  const nextTrack = resolveTrack(id);
+  if (nextTrack.id === currentTrack.id) return;
+  const wasPlaying = musicStarted && !isSilentTrack(currentTrack);
+  await stopMusic();
+  currentTrack = nextTrack;
+  if (wasPlaying) {
+    await playMusic(true);
+  } else if (isSilentTrack(nextTrack)) {
+    musicStarted = true;
+  }
+}
+
+export function getCurrentBgmTrackId(): string {
+  return currentTrack.id;
+}
+
+export function getBgmTracks(): readonly BgmTrackDefinition[] {
+  return BGM_TRACKS;
 }
 
 export async function playLineClear() {

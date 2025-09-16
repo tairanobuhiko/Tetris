@@ -50,8 +50,14 @@ export const Board: React.FC<Props> = ({ board, piece, cellSize }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.grid,
-    padding: 4,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.outline,
+    shadowColor: '#020617',
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 16 },
   },
   row: { flexDirection: 'row' },
 });
