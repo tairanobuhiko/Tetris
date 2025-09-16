@@ -27,7 +27,7 @@ export const BGM_TRACKS: readonly BgmTrackDefinition[] = [
   {
     id: 'remix_kirby',
     title: 'カービィのテーマ (リミックス)',
-    asset: require('../assets/audio/bgm_remix.caf'),
+    asset: require('../assets/audio/Green_Greens_Remix.caf'),
     volume: 0.32,
     description: 'カービィのテーマソングのリミックス風アレンジ',
   },
