@@ -43,7 +43,7 @@ export const BGM_TRACKS: readonly BgmTrackDefinition[] = [
 export const DEFAULT_BGM_TRACK_ID = 'kirby';
 
 // 効果音の差し替えが必要な場合は以下を編集
-export const LINE_REQUIRE = require('../assets/audio/block_line.mp3');
+export const LINE_REQUIRE = require('../assets/audio/break_line.mp3');
 export const OVER_REQUIRE = require('../assets/audio/over.mp3');
 
 // export const LINE_REQUIRE: number | null = null;
