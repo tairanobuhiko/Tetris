@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 const { Ionicons } = require('@expo/vector-icons');
 import { Board as BoardComp } from '@/components/Board';
@@ -14,12 +14,20 @@ import { useLegacyResponder } from '@/hooks/useLegacyResponder';
 import { ENABLE_GESTURES } from '../config';
 import { BOARD_COLS } from '@/game/constants';
 
+// ソフトドロップのホールド間隔
+const SOFT_DROP_HOLD_INTERVAL_MS = 500;
+
 export const GameScreen: React.FC = () => {
   const [state, setState] = useState(() => initGame());
   const [paused, setPaused] = useState(false);
   const [started, setStarted] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const { bgmTrackId, changeBgmTrack } = useSettings();
+
+  const pausedRef = useRef(paused);
+  const startedRef = useRef(started);
+  const gameOverRef = useRef(state.isGameOver);
+  const softDropIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ゲームループ（1秒ごと）
   useGameLoop(
@@ -44,19 +52,35 @@ export const GameScreen: React.FC = () => {
     playMusic(true);
     setState((s) => tryRotate(s));
   }, [paused, started, state.isGameOver]);
-  const onSoftDrop = useCallback(
-    () => {
-      if (paused || state.isGameOver || !started) return;
-      setState((s) => {
-        playMusic(true);
-        // ソフトドロップは速度をさらに上げる（4ステップ）
-        let next = tryMove(s, { row: 1, col: 0 });
-        for (let i = 0; i < 3; i++) next = tryMove(next, { row: 1, col: 0 });
-        return next;
-      });
-    },
-    [paused, started, state.isGameOver],
-  );
+  const clearSoftDropHold = useCallback(() => {
+    if (softDropIntervalRef.current) {
+      clearInterval(softDropIntervalRef.current);
+      softDropIntervalRef.current = null;
+    }
+  }, []);
+
+  const onSoftDrop = useCallback(() => {
+    if (pausedRef.current || gameOverRef.current || !startedRef.current) return;
+    playMusic(true);
+    setState((s) => {
+      let next = tryMove(s, { row: 1, col: 0 });
+      for (let i = 0; i < 3; i++) next = tryMove(next, { row: 1, col: 0 });
+      return next;
+    });
+  }, [playMusic]);
+
+  const handleSoftDropPressIn = useCallback(() => {
+    if (pausedRef.current || gameOverRef.current || !startedRef.current) return;
+    onSoftDrop();
+    if (softDropIntervalRef.current) return;
+    softDropIntervalRef.current = setInterval(() => {
+      onSoftDrop();
+    }, SOFT_DROP_HOLD_INTERVAL_MS);
+  }, [onSoftDrop]);
+
+  const handleSoftDropPressOut = useCallback(() => {
+    clearSoftDropHold();
+  }, [clearSoftDropHold]);
 
   const onPauseToggle = useCallback(() => setPaused((p) => !p), []);
 
@@ -109,10 +133,29 @@ export const GameScreen: React.FC = () => {
 
   // アンマウント時にサウンド停止
   React.useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+
+  React.useEffect(() => {
+    startedRef.current = started;
+  }, [started]);
+
+  React.useEffect(() => {
+    gameOverRef.current = state.isGameOver;
+  }, [state.isGameOver]);
+
+  React.useEffect(() => {
+    if (paused || state.isGameOver || !started) {
+      clearSoftDropHold();
+    }
+  }, [paused, state.isGameOver, started, clearSoftDropHold]);
+
+  React.useEffect(() => {
     return () => {
+      clearSoftDropHold();
       stopAllSounds();
     };
-  }, []);
+  }, [clearSoftDropHold]);
 
   // ライン消去で効果音
   const prevLines = React.useRef(state.linesCleared);
@@ -221,8 +264,9 @@ export const GameScreen: React.FC = () => {
         <Pressable
           accessibilityLabel="ソフトドロップ"
           style={[styles.btn, styles.accent, (paused||!started)?styles.btnDisabled:null]}
-          onPress={onSoftDrop}
           disabled={paused || !started}
+          onPressIn={handleSoftDropPressIn}
+          onPressOut={handleSoftDropPressOut}
         >
           <Ionicons name="arrow-down" size={24} color={'#0b1020'} />
         </Pressable>
