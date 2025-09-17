@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   overHint: { color: COLORS.text, opacity: 0.85, fontSize: 16 },
   confetti: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 3,
+    zIndex: 6,
   },
   pauseLabel: {
     color: COLORS.text,

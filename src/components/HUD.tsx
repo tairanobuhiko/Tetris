@@ -34,7 +34,7 @@ export const HUD: React.FC<Props> = ({ score, next, isGameOver, showSettingsButt
         <View style={styles.scoreBadge}>
           <Text style={styles.scoreLabel}>スコア</Text>
           <Text style={styles.scoreValue}>{score}</Text>
-          <Text style={styles.bestLabel}>ベスト {highScore}</Text>
+          <Text style={styles.bestLabel}>ベストスコア {highScore}</Text>
         </View>
         <View style={[styles.nextBadge, { borderColor: PIECE_COLORS[next.kind] }]}>
           <Text style={styles.nextLabel}>Next</Text>

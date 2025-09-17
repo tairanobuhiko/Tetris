@@ -143,6 +143,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 2,
     opacity: 0.85,
+    left: SCREEN_WIDTH / 2,
   },
 });
 
