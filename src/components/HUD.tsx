@@ -10,9 +10,10 @@ type Props = {
   isGameOver: boolean;
   showSettingsButton: boolean;
   onPressSettings: () => void;
+  highScore: number;
 };
 
-export const HUD: React.FC<Props> = ({ score, next, isGameOver, showSettingsButton, onPressSettings }) => {
+export const HUD: React.FC<Props> = ({ score, next, isGameOver, showSettingsButton, onPressSettings, highScore }) => {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
@@ -33,6 +34,7 @@ export const HUD: React.FC<Props> = ({ score, next, isGameOver, showSettingsButt
         <View style={styles.scoreBadge}>
           <Text style={styles.scoreLabel}>スコア</Text>
           <Text style={styles.scoreValue}>{score}</Text>
+          <Text style={styles.bestLabel}>ベスト {highScore}</Text>
         </View>
         <View style={[styles.nextBadge, { borderColor: PIECE_COLORS[next.kind] }]}>
           <Text style={styles.nextLabel}>Next</Text>
@@ -70,6 +72,7 @@ const styles = StyleSheet.create({
   },
   scoreLabel: { color: COLORS.text, opacity: 0.72, fontSize: 12, letterSpacing: 2 },
   scoreValue: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
+  bestLabel: { color: COLORS.text, opacity: 0.75, fontSize: 12, marginTop: 4 },
   nextBadge: {
     flex: 1,
     borderRadius: 10,

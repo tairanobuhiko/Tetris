@@ -13,6 +13,8 @@ import { useInputLayer } from '@/hooks/useInput';
 import { useLegacyResponder } from '@/hooks/useLegacyResponder';
 import { ENABLE_GESTURES } from '../config';
 import { BOARD_COLS } from '@/game/constants';
+import { loadHighScore, saveHighScore } from '@/storage/highscore';
+import { Confetti } from '@/components/Confetti';
 
 // ソフトドロップのホールド間隔
 const SOFT_DROP_HOLD_INTERVAL_MS = 500;
@@ -23,6 +25,7 @@ export const GameScreen: React.FC = () => {
   const [started, setStarted] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const { bgmTrackId, changeBgmTrack } = useSettings();
+  const [highScore, setHighScore] = useState(0);
 
   const pausedRef = useRef(paused);
   const startedRef = useRef(started);
@@ -145,6 +148,24 @@ export const GameScreen: React.FC = () => {
   }, [state.isGameOver]);
 
   React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const stored = await loadHighScore();
+      if (mounted) setHighScore(stored);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (state.score > highScore) {
+      setHighScore(state.score);
+      void saveHighScore(state.score);
+    }
+  }, [state.score, highScore]);
+
+  React.useEffect(() => {
     if (paused || state.isGameOver || !started) {
       clearSoftDropHold();
     }
@@ -196,6 +217,7 @@ export const GameScreen: React.FC = () => {
           isGameOver={state.isGameOver}
           showSettingsButton={!started || paused}
           onPressSettings={onOpenSettings}
+          highScore={highScore}
         />
       </View>
       {paused && (
@@ -246,12 +268,13 @@ export const GameScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </Pressable>
         <Pressable
-          accessibilityLabel="回転"
-          style={[styles.btn, (paused||!started)?styles.btnDisabled:null]}
-          onPress={onRotate}
+          accessibilityLabel="ソフトドロップ"
+          style={[styles.btn, styles.accent, (paused||!started)?styles.btnDisabled:null]}
           disabled={paused || !started}
+          onPressIn={handleSoftDropPressIn}
+          onPressOut={handleSoftDropPressOut}
         >
-          <Ionicons name="refresh" size={24} color={COLORS.text} />
+          <Ionicons name="arrow-down" size={24} color={'#0b1020'} />
         </Pressable>
         <Pressable
           accessibilityLabel="右へ"
@@ -262,13 +285,12 @@ export const GameScreen: React.FC = () => {
           <Ionicons name="arrow-forward" size={24} color={COLORS.text} />
         </Pressable>
         <Pressable
-          accessibilityLabel="ソフトドロップ"
-          style={[styles.btn, styles.accent, (paused||!started)?styles.btnDisabled:null]}
+          accessibilityLabel="回転"
+          style={[styles.btn, (paused||!started)?styles.btnDisabled:null]}
+          onPress={onRotate}
           disabled={paused || !started}
-          onPressIn={handleSoftDropPressIn}
-          onPressOut={handleSoftDropPressOut}
         >
-          <Ionicons name="arrow-down" size={24} color={'#0b1020'} />
+          <Ionicons name="refresh" size={24} color={COLORS.text} />
         </Pressable>
         <Pressable
           accessibilityLabel={paused ? 'つづける' : 'ポーズ'}
@@ -298,6 +320,7 @@ export const GameScreen: React.FC = () => {
           <Text style={styles.overHint}>タップでさいしょから</Text>
         </View>
       )}
+      <Confetti visible={state.isGameOver && state.score >= 1000} style={styles.confetti} />
       <SettingsModal
         visible={settingsVisible}
         onClose={onCloseSettings}
@@ -376,10 +399,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(2,6,23,0.78)',
     gap: 10,
+    zIndex: 4,
   },
   overTitle: { color: COLORS.text, fontSize: 30, fontWeight: '800', letterSpacing: 8 },
   overScore: { color: COLORS.text, fontSize: 34, fontWeight: '900' },
   overHint: { color: COLORS.text, opacity: 0.85, fontSize: 16 },
+  confetti: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3,
+  },
   pauseLabel: {
     color: COLORS.text,
     alignSelf: 'center',

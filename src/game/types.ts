@@ -25,4 +25,5 @@ export type GameState = {
   isGameOver: boolean;
   tickMs: number;
   startAt: number; // UNIX ms
+  comboStreak: number;
 };

@@ -3,6 +3,14 @@ import { createEmptyBoard, canPlace, mergePiece, clearFullLines } from './board'
 import { getInitialShape, randomKind, rotateCW } from './tetrominoes';
 import { FallingPiece, GameState, PieceKind, Position } from './types';
 
+const SCORE_TABLE = {
+  0: 0,
+  1: 100,
+  2: 150,
+  3: 200,
+  4: 300,
+} as const;
+
 function spawnPiece(): FallingPiece {
   const kind: PieceKind = randomKind();
   const shape = getInitialShape(kind);
@@ -24,7 +32,16 @@ export function initGame(): GameState {
     isGameOver: false,
     tickMs: INITIAL_TICK_MS,
     startAt: Date.now(),
+    comboStreak: 0,
   };
+}
+
+export function calculateLineClearScore(cleared: number, currentStreak: number): { gain: number; nextStreak: number } {
+  if (cleared <= 0) return { gain: 0, nextStreak: 0 };
+  const base = SCORE_TABLE[cleared as keyof typeof SCORE_TABLE] ?? 0;
+  const nextStreak = currentStreak + 1;
+  const multiplier = nextStreak > 1 ? 1.1 : 1;
+  return { gain: Math.round(base * multiplier), nextStreak };
 }
 
 export function tryMove(state: GameState, delta: Position): GameState {
@@ -63,8 +80,7 @@ export function tick(state: GameState): GameState {
   if (moved === state) {
     const merged = mergePiece(state.board, state.currentPiece);
     const { board, cleared } = clearFullLines(merged);
-    const scoreTable = [0, 100, 300, 500, 800] as const;
-    const scoreGain = cleared > 0 ? Math.max(0, scoreTable[cleared] ?? 0) : 0;
+    const { gain: scoreGain, nextStreak } = calculateLineClearScore(cleared, state.comboStreak);
     const next = state.nextPiece;
     const spawn: GameState = {
       ...state,
@@ -73,6 +89,7 @@ export function tick(state: GameState): GameState {
       linesCleared: state.linesCleared + cleared,
       currentPiece: next,
       nextPiece: spawnPiece(),
+      comboStreak: cleared > 0 ? nextStreak : 0,
     };
     // 生成位置で衝突したらゲームオーバー
     if (!canPlace(spawn.board, spawn.currentPiece, spawn.currentPiece.position)) {
